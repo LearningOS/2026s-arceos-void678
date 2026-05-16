@@ -11,5 +11,5 @@ documentation = "https://arceos-org.github.io/arceos/axconfig/index.html"
 
 [build-dependencies]
 toml_edit = "0.22"
-indexmap = "=2.7.1"
+indexmap = "=2.6.0"
 serde = "1.0"
