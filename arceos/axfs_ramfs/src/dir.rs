@@ -67,6 +67,22 @@ impl DirNode {
         children.remove(name);
         Ok(())
     }
+
+    /// Renames a child node in this directory.
+    pub fn rename_node(&self, src: &str, dst: &str) -> VfsResult {
+        if src.is_empty() || src == "." || src == ".." || dst.is_empty() || dst == "." || dst == ".."
+        {
+            return Err(VfsError::InvalidInput);
+        }
+
+        let mut children = self.children.write();
+        if children.contains_key(dst) {
+            return Err(VfsError::AlreadyExists);
+        }
+        let node = children.remove(src).ok_or(VfsError::NotFound)?;
+        children.insert(dst.into(), node);
+        Ok(())
+    }
 }
 
 impl VfsNodeOps for DirNode {
@@ -162,6 +178,34 @@ impl VfsNodeOps for DirNode {
             Err(VfsError::InvalidInput) // remove '.' or '..
         } else {
             self.remove_node(name)
+        }
+    }
+
+    fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
+        log::debug!("rename at ramfs: {} -> {}", src_path, dst_path);
+        let (src_name, src_rest) = split_path(src_path);
+        let (dst_name, dst_rest) = split_path(dst_path);
+        match (src_rest, dst_rest) {
+            (None, None) => self.rename_node(src_name, dst_name),
+            (Some(src_rest), Some(dst_rest)) if src_name == dst_name => {
+                match src_name {
+                    "" | "." => self.rename(src_rest, dst_rest),
+                    ".." => self
+                        .parent()
+                        .ok_or(VfsError::NotFound)?
+                        .rename(src_rest, dst_rest),
+                    _ => {
+                        let subdir = self
+                            .children
+                            .read()
+                            .get(src_name)
+                            .ok_or(VfsError::NotFound)?
+                            .clone();
+                        subdir.rename(src_rest, dst_rest)
+                    }
+                }
+            }
+            _ => Err(VfsError::Unsupported),
         }
     }
 

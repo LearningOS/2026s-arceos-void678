@@ -26,7 +26,7 @@ define mk_pflash
   @RUSTFLAGS="" cargo build -p origin  --target riscv64gc-unknown-none-elf --release
   @rust-objcopy --binary-architecture=riscv64 --strip-all -O binary ./target/riscv64gc-unknown-none-elf/release/origin /tmp/origin.bin
   @printf "pfld\00\00\00\01" > /tmp/prefix.bin
-  @printf "%08x" `stat -c "%s" /tmp/origin.bin` | xxd -r -ps > /tmp/size.bin
+  @printf "%08x" `wc -c < /tmp/origin.bin` | xxd -r -ps > /tmp/size.bin
   @cat /tmp/prefix.bin /tmp/size.bin > /tmp/head.bin
   @dd if=/dev/zero of=./$(1) bs=1M count=32
   @dd if=/tmp/head.bin of=./$(1) conv=notrunc
@@ -35,12 +35,17 @@ endef
 
 define setup_disk
   $(call build_origin)
-  @mkdir -p ./mnt
-  @sudo mount $(1) ./mnt
-  @sudo mkdir -p ./mnt/sbin
-  @sudo cp /tmp/origin.bin ./mnt/sbin
-  @sudo umount ./mnt
-  @rm -rf mnt
+  @if command -v mcopy >/dev/null 2>&1; then \
+    mmd -i $(1) ::/sbin 2>/dev/null || true; \
+    mcopy -o -i $(1) /tmp/origin.bin ::/sbin/origin.bin; \
+  else \
+    mkdir -p ./mnt; \
+    sudo mount $(1) ./mnt; \
+    sudo mkdir -p ./mnt/sbin; \
+    sudo cp /tmp/origin.bin ./mnt/sbin; \
+    sudo umount ./mnt; \
+    rm -rf mnt; \
+  fi
 endef
 
 define build_origin

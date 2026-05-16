@@ -199,6 +199,7 @@ impl UspaceContext {
     /// and the argument.
     pub fn new(entry: usize, ustack_top: VirtAddr) -> Self {
         const SPIE: usize = 1 << 5;
+        const FS_DIRTY: usize = 3 << 13;
         const SUM: usize = 1 << 18;
         Self(TrapFrame {
             regs: GeneralRegisters {
@@ -206,7 +207,7 @@ impl UspaceContext {
                 ..Default::default()
             },
             sepc: entry,
-            sstatus: SPIE | SUM,
+            sstatus: SPIE | FS_DIRTY | SUM,
         })
     }
 
